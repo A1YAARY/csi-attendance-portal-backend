@@ -1,0 +1,18 @@
+{
+  "scripts": {
+    "run_next_migration": "knex migrate:up --env api_write --migrations-directory src/models/migrations",
+    "undo_last_migration": "knex migrate:down --env api_write --migrations-directory src/models/migrations",
+    "create_migration": "knex migrate:make --migrations-directory src/models/migrations"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "errors": "^0.3.0",
+    "express": "^5.2.1",
+    "knex": "^3.1.0",
+    "morgan": "^1.10.1",
+    "path": "^0.12.7",
+    "pg": "^8.20.0"
+  }
+}
