@@ -1,6 +1,6 @@
-const { RES_LOCALS, LOG_CONSTANTS } = require("./middleware/constants");
+const { RES_LOCALS, LOG_CONSTANTS } = require("./middlewares/constant");
 const AccessManagement = require("../businesslogic/accessmanagement/AccessManagement");
-const LogUtilities = require("./utilities/LogUtilities");
+const LogUtilities = require("./utilities/logUtilities");
 
 const appWrapper = (callback, allowedRoles = []) => {
     return async (req, res, next) => {

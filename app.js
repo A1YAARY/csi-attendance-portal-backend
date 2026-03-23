@@ -6,7 +6,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const fileUpload = require('express-fileupload');
-const RouteMap = require('./src/routes/middleware/RouteMap');
+const RouteMap = require('./src/routes/middlewares/routeMap');
 const ErrorHandler = require('./src/errorhandlers/ErrorHandler');
 
 const app = express();
