@@ -15,8 +15,6 @@ class BaseModel {
         // this.DB = new Db(dbname)
     }
 
- 
-
     async getQueryBuilder(trxProvider = null) {
         return trxProvider ? await trxProvider() : Db.getQueryBuilder();
     }

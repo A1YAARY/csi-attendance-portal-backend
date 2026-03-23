@@ -1,6 +1,7 @@
 require('dotenv').config();
 const knexFileObject = require("../../../knexfile");
 
+
 class Db {
     constructor() {
         this.queryBuilder = this._initQueryBuilder();

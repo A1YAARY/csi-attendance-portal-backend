@@ -1,5 +1,4 @@
 const Db = require("./Db");
-const DatabaseError = require("../../errorhandlers/DatabaseError");
 
 const usingTrx = async (wrapperAsyncFn = async (_trxProvider) => {
 }, trxProvider = undefined) => {

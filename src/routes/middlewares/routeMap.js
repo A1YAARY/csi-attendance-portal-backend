@@ -1,7 +1,6 @@
 const express = require("express");
 const { expressjwt: jwt } = require("express-jwt");
 
-const AuthModel = require("../../models/AuthModel");
 const AuthenticationError = require("../../errorhandlers/AuthenticationError");
 const AccessPermissionError = require("../../errorhandlers/AccessPermissionError");
 const { RES_LOCALS } = require("./constant");
