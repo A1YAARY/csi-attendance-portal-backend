@@ -8,7 +8,6 @@ class AuthController {
     //register organisation
     static async registerOrganization(req, res) {
         try {
-            // ✅ Use validator from class
             const { error, value } = AuthValidator
                 .registerOrganization()
                 .validate(req.body, { abortEarly: false });
@@ -20,14 +19,10 @@ class AuthController {
                 });
             }
 
-            const { name, address } = value;
+            const authModel = new AuthModel(req.user?.user_id);
 
             // 🔴 Check duplicate
-            const existing = await knex
-                .withSchema(PUBLIC_SCHEMA)
-                .table("organization")
-                .where({ name })
-                .first();
+            const existing = await authModel.findOrganizationByName(value.name);
 
             if (existing) {
                 return res.status(409).json({
@@ -36,12 +31,8 @@ class AuthController {
                 });
             }
 
-            // ✅ Insert
-            const [org] = await knex
-                .withSchema(PUBLIC_SCHEMA)
-                .table("organization")
-                .insert({ name, address })
-                .returning("*");
+            // ✅ Create
+            const org = await authModel.createOrganization(value);
 
             return res.status(201).json({
                 success: true,
@@ -50,11 +41,9 @@ class AuthController {
             });
 
         } catch (err) {
-            console.error("Register Organization Error:", err);
-
-            return res.status(500).json({
+            return res.status(err.statusCode || 500).json({
                 success: false,
-                message: "Internal server error",
+                message: err.message,
             });
         }
     }
@@ -62,7 +51,7 @@ class AuthController {
     //register user
     static async registerUser(req, res) {
         try {
-            // ✅ Validate
+            // ✅ Validate request
             const { error, value } = AuthValidator
                 .registerUser()
                 .validate(req.body, { abortEarly: false });
@@ -74,26 +63,10 @@ class AuthController {
                 });
             }
 
-            const {
-                name,
-                email,
-                password,
-                gender,
-                organization_id,
-                role_id,
-                phone,
-                department,
-                working_start,
-                working_end,
-                profile_image,
-            } = value;
+            const authModel = new AuthModel(null);
 
-            // 🔴 Check duplicate email
-            const existingUser = await knex
-                .withSchema(PUBLIC_SCHEMA)
-                .table("users")
-                .where({ email })
-                .first();
+            // 🔴 Check if user already exists
+            const existingUser = await authModel.getUserForLogin(value.email);
 
             if (existingUser) {
                 return res.status(409).json({
@@ -103,28 +76,27 @@ class AuthController {
             }
 
             // 🔐 Hash password
-            const hashedPassword = await bcrypt.hash(password, 10);
+            const hashedPassword = await bcrypt.hash(value.password, 10);
 
-            // ✅ Insert user
-            const [user] = await knex
-                .withSchema(PUBLIC_SCHEMA)
-                .table("users")
-                .insert({
-                    name: name.trim(),
-                    email: email.trim(),
-                    password: hashedPassword,
-                    gender,
-                    organization_id: organization_id || null,
-                    role_id: role_id || null,
-                    phone: phone || null,
-                    department: department || null,
-                    working_start: working_start || "09:00:00",
-                    working_end: working_end || "17:00:00",
-                    profile_image: profile_image || null,
-                })
-                .returning("*");
+            // ✅ Prepare payload
+            const userPayload = {
+                name: value.name.trim(),
+                email: value.email.trim(),
+                password: hashedPassword,
+                gender: value.gender,
+                organization_id: value.organization_id || null,
+                role_id: value.role_id || null,
+                phone: value.phone || null,
+                department: value.department || null,
+                working_start: value.working_start || "09:00:00",
+                working_end: value.working_end || "17:00:00",
+                profile_image: value.profile_image || null,
+            };
 
-            // 🎟️ Generate JWT immediately after register
+            // ✅ Create user via model
+            const user = await authModel.createUser(userPayload);
+
+            // 🎟️ Generate JWT
             const token = jwtHelper.generateToken({
                 user_id: user.user_id,
                 email: user.email,
@@ -145,9 +117,9 @@ class AuthController {
         } catch (err) {
             console.error("Register User Error:", err);
 
-            return res.status(500).json({
+            return res.status(err.statusCode || 500).json({
                 success: false,
-                message: "Internal server error",
+                message: err.message || "Internal server error",
             });
         }
     }
@@ -155,7 +127,7 @@ class AuthController {
     //LOGIN
     static async login(req, res) {
         try {
-            // ✅ Validate
+            // ✅ Validate request
             const { error, value } = AuthValidator
                 .loginUser()
                 .validate(req.body, { abortEarly: false });
@@ -169,17 +141,16 @@ class AuthController {
 
             const { email, password } = value;
 
-            // 🔍 Find user
-            const user = await knex
-                .withSchema(PUBLIC_SCHEMA)
-                .table("users")
-                .where({ email })
-                .first();
+            const authModel = new AuthModel(null);
 
+            // 🔍 Get user (includes password)
+            const user = await authModel.getUserForLogin(email);
+
+            // 🔐 Avoid user enumeration
             if (!user) {
-                return res.status(404).json({
+                return res.status(401).json({
                     success: false,
-                    message: "User not found",
+                    message: "Invalid credentials",
                 });
             }
 
@@ -197,7 +168,7 @@ class AuthController {
             const token = jwtHelper.generateToken({
                 user_id: user.user_id,
                 email: user.email,
-                role_id: user.role_id,
+                role_id: user.role_id, // may be undefined if not selected
             });
 
             return res.status(200).json({
@@ -214,9 +185,9 @@ class AuthController {
         } catch (err) {
             console.error("Login Error:", err);
 
-            return res.status(500).json({
+            return res.status(err.statusCode || 500).json({
                 success: false,
-                message: "Internal server error",
+                message: err.message || "Internal server error",
             });
         }
     }

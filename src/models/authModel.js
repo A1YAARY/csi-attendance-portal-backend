@@ -16,6 +16,38 @@ class AuthModel extends BaseModel {
     ];
   }
 
+  // 🔹 Create Organization
+async createOrganization(payload) {
+  try {
+    const qb = await this.getQueryBuilder();
+    const insertData = this.insertStatement(payload);
+
+    const [org] = await qb("organization")
+      .insert(insertData)
+      .returning(["id", "name", "address"]);
+
+    return org || null;
+  } catch (e) {
+    throw new DatabaseError(e);
+  }
+}
+
+// 🔹 Find Organization by Name (for duplicate check)
+async findOrganizationByName(name) {
+  try {
+    const qb = await this.getQueryBuilder();
+
+    const org = await qb("organization")
+      .select("id", "name", "address")
+      .where(this.whereStatement({ name }))
+      .first();
+
+    return org || null;
+  } catch (e) {
+    throw new DatabaseError(e);
+  }
+}
+
   // 🔹 Create User
   async createUser(payload) {
     try {
