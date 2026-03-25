@@ -1,8 +1,8 @@
-const knex = require("../config/db");
+const knex = require("../../models/libs/Db");
 const bcrypt = require("bcrypt");
-const { PUBLIC_SCHEMA } = require("../libs/dbConstants");
+const { PUBLIC_SCHEMA } = require("../../models/libs/dbConstants");
 const AuthValidator = require("../../validators/authValidator");
-const jwtHelper = require("../helpers/jwt.helper");
+const jwtHelper = require("../../routes/utilities/jwtUtilities");
 
 class AuthController {
     //register organisation

@@ -3,10 +3,11 @@
     "run_next_migration": "knex migrate:up --env api_write --migrations-directory src/models/migrations",
     "undo_last_migration": "knex migrate:down --env api_write --migrations-directory src/models/migrations",
     "create_migration": "knex migrate:make --migrations-directory src/models/migrations",
-    "dev": "nodemon app.js",
-    "start": "node app.js"
+    "dev": "nodemon bin/www",
+    "start": "node bin/www"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",

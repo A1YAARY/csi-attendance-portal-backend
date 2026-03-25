@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
-const AuthenticationManager = require("../../../businesslogic/managers/AuthenticationManager");
-const { appWrapper } = require("../../routeWrapper");
+const AuthenticationManager = require("../../../businesslogic/managers/authenticationManager");
+const { appWrapper } = require("../../routeWrappers");
 
 /**
  * POST /register_organization
