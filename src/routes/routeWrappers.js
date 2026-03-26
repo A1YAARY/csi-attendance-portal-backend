@@ -2,11 +2,20 @@ const { RES_LOCALS, LOG_CONSTANTS } = require("./middlewares/constant");
 const AccessManagement = require("../businesslogic/accessmanagement/AccessManagement");
 const LogUtilities = require("./utilities/logUtilities");
 
-const appWrapper = (callback, allowedRoles = []) => {
+const appWrapper = (callback, allowedRoles = null) => {
     return async (req, res, next) => {
         try {
-            const { roles = undefined, organization = undefined } = res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
-            AccessManagement.checkIfAccessGrantedOrThrowError(allowedRoles, { roles, organization });
+            const { roles = undefined, organization = undefined } =
+                res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
+
+            // ✅ Only check if roles are defined
+            if (allowedRoles && allowedRoles.length > 0) {
+                AccessManagement.checkIfAccessGrantedOrThrowError(
+                    allowedRoles,
+                    { roles, organization }
+                );
+            }
+
             await callback(req, res, next);
         } catch (e) {
             LogUtilities.createLog(LOG_CONSTANTS.ERROR.FILE_NAME, "Error", e.toString());
@@ -15,14 +24,23 @@ const appWrapper = (callback, allowedRoles = []) => {
     };
 };
 
-const successResponseAppWrapper = (callback, allowedRoles = []) => {
+const successResponseAppWrapper = (callback, allowedRoles = null) => {
     return async (req, res, next) => {
         try {
-            const { roles = undefined, organization = undefined } = res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
-            AccessManagement.checkIfAccessGrantedOrThrowError(allowedRoles, { roles, organization });
+            const { roles = undefined, organization = undefined } =
+                res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
+
+            if (allowedRoles && allowedRoles.length > 0) {
+                AccessManagement.checkIfAccessGrantedOrThrowError(
+                    allowedRoles,
+                    { roles, organization }
+                );
+            }
+
             await callback(req, res, next);
+
             res.json({
-                "status": "success"
+                status: "success"
             });
         } catch (e) {
             LogUtilities.createLog(LOG_CONSTANTS.ERROR.FILE_NAME, "Error", e.toString());

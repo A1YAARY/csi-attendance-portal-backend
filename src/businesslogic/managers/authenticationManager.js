@@ -3,43 +3,45 @@ const bcrypt = require("bcrypt");
 const { PUBLIC_SCHEMA } = require("../../models/libs/dbConstants");
 const AuthValidator = require("../../validators/authValidator");
 const jwtHelper = require("../../routes/utilities/jwtUtilities");
+const AuthModel = require("../../models/authModel")
 
 class AuthController {
     //register organisation
     static async registerOrganization(req, res) {
+        
         try {
+            console.log(req.body)
             const { error, value } = AuthValidator
                 .registerOrganization()
                 .validate(req.body, { abortEarly: false });
-
+            
             if (error) {
                 return res.status(400).json({
                     success: false,
                     errors: error.details.map(e => e.message),
                 });
             }
-
+            console.log(0)
             const authModel = new AuthModel(req.user?.user_id);
-
+            console.log(value)
             // 🔴 Check duplicate
             const existing = await authModel.findOrganizationByName(value.name);
-
+            console.log(2)
             if (existing) {
                 return res.status(409).json({
                     success: false,
                     message: "Organization already exists",
                 });
             }
-
+            console.log(3)
             // ✅ Create
             const org = await authModel.createOrganization(value);
-
+            console.log(4)
             return res.status(201).json({
                 success: true,
                 message: "Organization registered successfully",
                 data: org,
             });
-
         } catch (err) {
             return res.status(err.statusCode || 500).json({
                 success: false,

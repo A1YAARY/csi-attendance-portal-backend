@@ -1,6 +1,7 @@
 const { ACCESS_ROLES } = require("./roleConstants");
 const { USER_ROLES_INFO } = require("../../models/libs/seedConstants");
 const { DB_TABLE } = require("../../models/libs/dbConstants");
+const AccessPermissionError = require("../../errorhandlers/AccessPermissoinError")
 
 
 class AccessManagement {
