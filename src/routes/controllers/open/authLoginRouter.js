@@ -1,5 +1,7 @@
 const express = require("express");
 const router = express.Router();
+router.use(express.json());
+router.use(express.urlencoded({ extended: true }));
 
 const AuthenticationManager = require("../../../businesslogic/managers/authenticationManager");
 const { appWrapper } = require("../../routeWrappers");
@@ -23,6 +25,24 @@ router.post(
 );
 
 /**
+ * POST /register user
+ * Logs in a user based on email and password.
+ * Body: { email, password }
+ */
+router.post(
+  "/register_user",
+  appWrapper(async (req, res) => {
+    const result = await AuthenticationManager.registerUser(req.body);
+
+    return res.json({
+      success: true,
+      message: "User registered successfully",
+      ...result,
+    });
+  })
+);
+
+/**
  * POST /login
  * Logs in a user based on email and password.
  * Body: { email, password }
@@ -30,10 +50,7 @@ router.post(
 router.post(
   "/login",
   appWrapper(async (req, res) => {
-    const result = await AuthenticationManager.login(
-      req.body.email,
-      req.body.password
-    );
+    const result = await AuthenticationManager.login(req.body);
 
     return res.json({
       success: true,

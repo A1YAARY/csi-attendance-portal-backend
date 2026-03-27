@@ -36,14 +36,14 @@ async createOrganization(payload) {
 async findOrganizationByName(name) {
   console.log(name)
   try {
-    console.log(a)
+    // console.log(a)
     const qb = await this.getQueryBuilder();
-    console.log(b)
+    // console.log(b)
     const org = await qb("organization")
       .select("id", "name", "address")
       .where(this.whereStatement({ name }))
       .first();
-    console.log(c)
+    // console.log(c)
     return org || null;
   } catch (e) {
     throw new DatabaseError(e);
