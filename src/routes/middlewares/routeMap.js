@@ -3,6 +3,8 @@ const { expressjwt: jwt } = require("express-jwt");
 
 const AuthenticationError = require("../../errorhandlers/AuthenticationError");
 const AccessPermissionError = require("../../errorhandlers/AccessPermissoinError");
+const Authrouter = require("../controllers/open/authLoginRouter");
+const Adminrouter = require("../controllers/adminRouter");
 const { RES_LOCALS } = require("./constant");
 
 const AuthModel = require("../../models/authModel");
@@ -13,8 +15,6 @@ const openrouter = express.Router();
 // 🔒 CLOSED ROUTER
 const closedrouter = express.Router();
 
-// 🔹 ROUTES
-const Authrouter = require("../controllers/open/authLoginRouter"); // your auth router
 
 class RouteMap {
   static setupRoutesAndAuth(app) {
@@ -36,6 +36,8 @@ class RouteMap {
       RouteMap._addUserInformation,
       closedrouter
     );
+    
+    closedrouter.use("/admin",Adminrouter);
 
     // Attach all protected routes here
 
@@ -121,6 +123,21 @@ class RouteMap {
       next(err);
     }
   }
+
+
 }
 
 module.exports = RouteMap;
+
+
+
+
+
+
+
+
+
+
+
+
+

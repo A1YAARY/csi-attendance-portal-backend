@@ -3,50 +3,67 @@ const AccessManagement = require("../businesslogic/accessmanagement/AccessManage
 const LogUtilities = require("./utilities/logUtilities");
 
 const appWrapper = (callback, allowedRoles = null) => {
-    return async (req, res, next) => {
-        try {
-            const { roles = undefined, organization = undefined } =
-                res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
+  return async (req, res, next) => {
+    try {
+      const { roles = undefined, organization = undefined } =
+        res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
 
-            // ✅ Only check if roles are defined
-            if (allowedRoles && allowedRoles.length > 0) {
-                AccessManagement.checkIfAccessGrantedOrThrowError(
-                    allowedRoles,
-                    { roles, organization }
-                );
-            }
+      // 🔐 Role check
+      if (allowedRoles && allowedRoles.length > 0) {
+        AccessManagement.checkIfAccessGrantedOrThrowError(
+          allowedRoles,
+          { roles, organization }
+        );
+      }
 
-            await callback(req, res, next);
-        } catch (e) {
-            LogUtilities.createLog(LOG_CONSTANTS.ERROR.FILE_NAME, "Error", e.toString());
-            next(e);
-        }
-    };
+      // ✅ safer async handling
+      await Promise.resolve(callback(req, res, next));
+
+    } catch (e) {
+      // ✅ better logging
+      LogUtilities.createLog(
+        LOG_CONSTANTS.ERROR.FILE_NAME,
+        "Error",
+        e
+      );
+
+      next(e); // 🔥 goes to ErrorHandler
+    }
+  };
 };
 
 const successResponseAppWrapper = (callback, allowedRoles = null) => {
-    return async (req, res, next) => {
-        try {
-            const { roles = undefined, organization = undefined } =
-                res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
+  return async (req, res, next) => {
+    try {
+      const { roles = undefined, organization = undefined } =
+        res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
 
-            if (allowedRoles && allowedRoles.length > 0) {
-                AccessManagement.checkIfAccessGrantedOrThrowError(
-                    allowedRoles,
-                    { roles, organization }
-                );
-            }
+      if (allowedRoles && allowedRoles.length > 0) {
+        AccessManagement.checkIfAccessGrantedOrThrowError(
+          allowedRoles,
+          { roles, organization }
+        );
+      }
 
-            await callback(req, res, next);
+      await Promise.resolve(callback(req, res, next));
 
-            res.json({
-                status: "success"
-            });
-        } catch (e) {
-            LogUtilities.createLog(LOG_CONSTANTS.ERROR.FILE_NAME, "Error", e.toString());
-            next(e);
-        }
-    };
+      // ✅ prevent double response
+      if (!res.headersSent) {
+        res.json({
+          status: "success"
+        });
+      }
+
+    } catch (e) {
+      LogUtilities.createLog(
+        LOG_CONSTANTS.ERROR.FILE_NAME,
+        "Error",
+        e
+      );
+
+      next(e);
+    }
+  };
 };
 
 module.exports = {
