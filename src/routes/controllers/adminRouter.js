@@ -2,7 +2,10 @@ const express = require("express");
 const router = express.Router({ mergeParams: true });
 const { appWrapper } = require("../routeWrappers");
 const UserManager = require("../../businesslogic/managers/userManager");
+const NotificationManager = require("../../businesslogic/managers/notificationManager");
 const { ACCESS_ROLES } = require("../../businesslogic/accessmanagement/roleConstants");
+const AppError = require("../../errorhandlers/AppError");
+const { ERROR_STATUS_CODES } = require("../../errorhandlers/constants");
 
 
 router.get(
@@ -82,6 +85,36 @@ router.delete(
     return res.json({
       success: true,
       message: "User deleted successfully",
+    });
+  }, [ACCESS_ROLES.ADMIN, ACCESS_ROLES.SUPER_ADMIN])
+);
+
+router.get(
+  "/notifications",
+  appWrapper(async (req, res) => {
+    const currentUser = req.user;
+
+    const notifications =
+      await NotificationManager.getAllNotifications(currentUser);
+
+    return res.json({
+      success: true,
+      data: notifications,
+    });
+  }, [ACCESS_ROLES.ADMIN, ACCESS_ROLES.SUPER_ADMIN])
+);
+
+router.put(
+  "/notifications/read-all",
+  appWrapper(async (req, res) => {
+    const currentUser = req.user;
+
+    const result =
+      await NotificationManager.markAllAsRead(currentUser);
+
+    return res.json({
+      success: true,
+      message: "All notifications marked as read",
     });
   }, [ACCESS_ROLES.ADMIN, ACCESS_ROLES.SUPER_ADMIN])
 );

@@ -5,8 +5,11 @@ const LogUtilities = require("./utilities/logUtilities");
 const appWrapper = (callback, allowedRoles = null) => {
   return async (req, res, next) => {
     try {
-      const { roles = undefined, organization = undefined } =
+      const userInfo =
         res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
+
+      const { roles = undefined, organization = undefined } = userInfo;
+      req.user = userInfo;
 
       // 🔐 Role check
       if (allowedRoles && allowedRoles.length > 0) {
@@ -16,18 +19,15 @@ const appWrapper = (callback, allowedRoles = null) => {
         );
       }
 
-      // ✅ safer async handling
       await Promise.resolve(callback(req, res, next));
 
     } catch (e) {
-      // ✅ better logging
       LogUtilities.createLog(
         LOG_CONSTANTS.ERROR.FILE_NAME,
         "Error",
         e
       );
-
-      next(e); // 🔥 goes to ErrorHandler
+      next(e);
     }
   };
 };
