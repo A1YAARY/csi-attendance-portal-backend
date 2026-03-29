@@ -15,16 +15,22 @@ class AccessManagement {
                 }
             });
         }
-        
+
         if (allowedRoles.includes(ACCESS_ROLES.ALL) || allowedRoles.includes(ACCESS_ROLES.ACCOUNT_SELF_MEMBER)) {
             return true;
         }
 
-        if (allowedRoles.includes(ACCESS_ROLES.ACCOUNT_ADMIN) && roleNames.includes(USER_ROLES_INFO.ADMIN.NAME)) {
+        if (
+            allowedRoles.includes(ACCESS_ROLES.ADMIN) &&
+            roleNames.includes(USER_ROLES_INFO.ADMIN.NAME)
+        ) {
             return true;
         }
 
-        if (allowedRoles.includes(ACCESS_ROLES.ACCOUNT_SUPER_ADMIN) && roleNames.includes(USER_ROLES_INFO.SUPER_ADMIN.NAME)) {
+        if (
+            allowedRoles.includes(ACCESS_ROLES.SUPER_ADMIN) &&
+            roleNames.includes(USER_ROLES_INFO.SUPER_ADMIN.NAME)
+        ) {
             return true;
         }
 
