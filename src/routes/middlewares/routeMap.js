@@ -5,6 +5,7 @@ const AuthenticationError = require("../../errorhandlers/AuthenticationError");
 const AccessPermissionError = require("../../errorhandlers/AccessPermissoinError");
 const Authrouter = require("../controllers/open/authLoginRouter");
 const Adminrouter = require("../controllers/adminRouter");
+const faceRouter = require("../controllers/faceRouter");
 const { RES_LOCALS } = require("./constant");
 
 const AuthModel = require("../../models/authModel");
@@ -38,6 +39,8 @@ class RouteMap {
     );
     
     closedrouter.use("/admin",Adminrouter);
+    closedrouter.use("/face", faceRouter);
+
 
     // Attach all protected routes here
 

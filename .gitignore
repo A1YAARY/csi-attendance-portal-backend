@@ -3,7 +3,8 @@
 node_modules/
 
 # environment variables
-
+__pycache__/
+venv/
 .env
 .env.*
 
