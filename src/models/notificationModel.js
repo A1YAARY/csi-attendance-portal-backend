@@ -1,5 +1,5 @@
 const BaseModel = require("./libs/BaseModel");
-const DatabaseError = require("../errors/DatabaseError");
+const DatabaseError = require("../errorhandlers/DatabaseError");
 
 class NotificationModel extends BaseModel {
   constructor(userId) {
