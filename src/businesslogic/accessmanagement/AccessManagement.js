@@ -1,42 +1,42 @@
 const { ACCESS_ROLES } = require("./roleConstants");
-const { USER_ROLES_INFO } = require("../../models/libs/seedConstants");
-const { DB_TABLE } = require("../../models/libs/dbConstants");
-const AccessPermissionError = require("../../errorhandlers/AccessPermissoinError")
-
 
 class AccessManagement {
-    static checkIfAccessGrantedOrThrowError = (allowedRoles = [], { roles, organization }) => {
-        // const roleName = role?.[DB_TABLE.ROLE.COLUMNS.NAME.KEY];
-        const roleNames = [];
-        if (roles && Array.isArray(roles)) {
-            roles.forEach(role => {
-                if (role && role['role_name']) {
-                    roleNames.push(role['role_name']);
-                }
-            });
+  static allowAccess(allowedRoles = [], options = {}) {
+    return (req, res, next) => {
+      try {
+        const { strict = false } = options;
+
+        if (!req.user) {
+          return res.status(401).json({ message: "Unauthorized" });
         }
 
-        if (allowedRoles.includes(ACCESS_ROLES.ALL) || allowedRoles.includes(ACCESS_ROLES.ACCOUNT_SELF_MEMBER)) {
-            return true;
+        const userRole = req.user.role;
+
+        // Allow all
+        if (allowedRoles.includes(ACCESS_ROLES.ALL)) {
+          return next();
         }
 
-        if (
-            allowedRoles.includes(ACCESS_ROLES.ADMIN) &&
-            roleNames.includes(USER_ROLES_INFO.ADMIN.NAME)
-        ) {
-            return true;
+        // SUPER_ADMIN override
+        if (!strict && userRole === ACCESS_ROLES.ACCOUNT_SUPER_ADMIN) {
+          return next();
         }
 
-        if (
-            allowedRoles.includes(ACCESS_ROLES.SUPER_ADMIN) &&
-            roleNames.includes(USER_ROLES_INFO.SUPER_ADMIN.NAME)
-        ) {
-            return true;
+        if (!allowedRoles.includes(userRole)) {
+          return res.status(403).json({
+            message: "Forbidden - Insufficient permissions",
+          });
         }
 
-
-        throw new AccessPermissionError();
-    }
+        next();
+      } catch (err) {
+        return res.status(500).json({
+          message: "Access control error",
+          error: err.message,
+        });
+      }
+    };
+  }
 }
 
 module.exports = AccessManagement;

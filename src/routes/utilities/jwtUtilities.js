@@ -1,11 +1,41 @@
-const jwt = require("jsonwebtoken");
+const jwt = require('express-jwt');
 
-const generateToken = (payload) => {
-  return jwt.sign(payload, process.env.JWT_SECRET_KEY, {
-    expiresIn: "7d",
-  });
-};
+class JwtUtilities {
+  static generateAccessToken(user) {
+    return jwt.sign(
+      {
+        id: user.id,
+        role: user.role,
+        org: user.organization_id,
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "15m" }
+    );
+  }
 
-module.exports = {
-    generateToken
+  static generateRefreshToken(user) {
+    return jwt.sign(
+      { id: user.id },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: "7d" }
+    );
+  }
+
+  static verifyAccessToken(token) {
+    try {
+      return jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    } catch (err) {
+      throw new Error("Invalid access token");
+    }
+  }
+
+  static verifyRefreshToken(token) {
+    try {
+      return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+    } catch (err) {
+      throw new Error("Invalid refresh token");
+    }
+  }
 }
+
+module.exports = JwtUtilities;

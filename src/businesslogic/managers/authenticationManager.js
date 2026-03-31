@@ -1,180 +1,106 @@
-const knex = require("../../models/libs/Db");
-const bcrypt = require("bcrypt");
-const { PUBLIC_SCHEMA } = require("../../models/libs/dbConstants");
-const AuthValidator = require("../../validators/authValidator");
-const jwtHelper = require("../../routes/utilities/jwtUtilities");
-const AuthModel = require("../../models/authModel")
+import bcrypt from "bcryptjs";
+import User from "../../models/authModel.js";
+import Organization from "../../models/organisationModel.js";
+import JwtUtilities from "../../routes/utilities/jwtUtilities.js";
 
-class AuthController {
-    //register organisation
-    static async registerOrganization(body) {
-    try {
-        const { error, value } = AuthValidator
-            .registerOrganization()
-            .validate(body, { abortEarly: false });
+class AuthenticationManager {
+  static async registerOrganization(data) {
+    const { orgName, name, email, password } = data;
 
-        if (error) {
-            throw {
-                statusCode: 400,
-                message: error.details.map(e => e.message),
-            };
-        }
+    const existing = await User.query().findOne({ email });
+    if (existing) throw new Error("User already exists");
 
-        const authModel = new AuthModel(); // ❌ removed req.user
+    const org = await Organization.query().insert({
+      name: orgName,
+    });
 
-        // 🔴 Check duplicate
-        const existing = await authModel.findOrganizationByName(value.name);
+    const hashed = await bcrypt.hash(password, 10);
 
-        if (existing) {
-            throw {
-                statusCode: 409,
-                message: "Organization already exists",
-            };
-        }
+    const admin = await User.query().insert({
+      name,
+      email,
+      password: hashed,
+      role: "ADMIN",
+      organization_id: org.id,
+    });
 
-        // ✅ Create
-        const org = await authModel.createOrganization(value);
+    const { accessToken, refreshToken } =
+      JwtUtilities.generateTokens(admin);
 
-        return {
-            data: org,
-        };
+    await User.query()
+      .patch({ refresh_token: refreshToken })
+      .where("id", admin.id);
 
-    } catch (err) {
-        throw err;
+    return { user: admin, accessToken, refreshToken };
+  }
+
+  static async loginUser({ email, password }) {
+    const user = await User.query().findOne({ email });
+
+    if (!user) throw new Error("User not found");
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) throw new Error("Invalid credentials");
+
+    const { accessToken, refreshToken } =
+      JwtUtilities.generateTokens(user);
+
+    await User.query()
+      .patch({ refresh_token: refreshToken })
+      .where("id", user.id);
+
+    return { user, accessToken, refreshToken };
+  }
+
+  static async refreshSession(token) {
+    if (!token) throw new Error("No refresh token");
+
+    const decoded = JwtUtilities.verifyRefreshToken(token);
+
+    const user = await User.query().findById(decoded.id);
+
+    if (!user || user.refresh_token !== token) {
+      throw new Error("Invalid refresh token");
     }
-}
 
-    // register user
-static async registerUser(body) {
-    try {
+    const accessToken = JwtUtilities.generateAccessToken(user);
 
-        const { error, value } = AuthValidator
-            .registerUser()
-            .validate(body, { abortEarly: false });
+    return { accessToken };
+  }
 
-        if (error) {
-            throw {
-                statusCode: 400,
-                message: error.details.map(e => e.message),
-            };
-        }
+  static async logoutUser(token) {
+    if (!token) return;
 
-        const authModel = new AuthModel(null);
+    const user = await User.query().findOne({
+      refresh_token: token,
+    });
 
-        // 🔴 Check if user already exists
-        const existingUser = await authModel.getUserForLogin(value.email);
-
-        if (existingUser) {
-            throw {
-                statusCode: 409,
-                message: "Email already exists",
-            };
-        }
-
-        // 🔐 Hash password
-        const hashedPassword = await bcrypt.hash(value.password, 10);
-
-        // ✅ Prepare payload
-        const userPayload = {
-            name: value.name.trim(),
-            email: value.email.trim(),
-            password: hashedPassword,
-            gender: value.gender,
-            organization_id: value.organization_id || null,
-            role_id: value.role_id || null,
-            phone: value.phone || null,
-            department: value.department || null,
-            working_start: value.working_start || "09:00:00",
-            working_end: value.working_end || "17:00:00",
-            profile_image: value.profile_image || null,
-        };
-
-        // ✅ Create user
-        const user = await authModel.createUser(userPayload);
-
-        // 🎟️ Generate JWT
-        const token = jwtHelper.generateToken({
-            user_id: user.user_id,
-            email: user.email,
-            role_id: user.role_id,
-        });
-
-        return {
-            token,
-            data: {
-                user_id: user.user_id,
-                name: user.name,
-                email: user.email,
-            },
-        };
-
-    } catch (err) {
-        throw err;
+    if (user) {
+      await User.query()
+        .patch({ refresh_token: null })
+        .where("id", user.id);
     }
-}
+  }
 
-    //LOGIN
-    static async login(body) {
-    try {
-
-        // ✅ Validate request
-        const { error, value } = AuthValidator
-            .loginUser()
-            .validate(body, { abortEarly: false });
-
-        if (error) {
-            throw {
-                statusCode: 400,
-                message: error.details.map(e => e.message),
-            };
-        }
-
-        const { email, password } = value;
-
-        const authModel = new AuthModel(null);
-
-        // 🔍 Get user
-        const user = await authModel.getUserForLogin(email);
-
-        // 🔐 Avoid user enumeration
-        if (!user) {
-            throw {
-                statusCode: 401,
-                message: "Invalid credentials",
-            };
-        }
-
-        // 🔐 Compare password
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            throw {
-                statusCode: 401,
-                message: "Invalid credentials",
-            };
-        }
-
-        // 🎟️ Generate JWT
-        const token = jwtHelper.generateToken({
-            user_id: user.user_id,
-            email: user.email,
-            role_id: user.role_id,
-        });
-
-        return {
-            token,
-            data: {
-                user_id: user.user_id,
-                name: user.name,
-                email: user.email,
-            },
-        };
-
-    } catch (err) {
-        throw err;
+  static async createStaff(adminUser, data) {
+    if (adminUser.role !== "ADMIN") {
+      throw new Error("Only admin can create staff");
     }
+
+    const { name, email, password } = data;
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const user = await User.query().insert({
+      name,
+      email,
+      password: hashed,
+      role: "USER",
+      organization_id: adminUser.org,
+    });
+
+    return user;
+  }
 }
 
-}
-
-module.exports = AuthController;
+export default AuthenticationManager;

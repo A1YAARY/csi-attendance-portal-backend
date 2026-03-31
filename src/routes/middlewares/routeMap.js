@@ -3,43 +3,44 @@ const { expressjwt: jwt } = require("express-jwt");
 
 const AuthenticationError = require("../../errorhandlers/AuthenticationError");
 const AccessPermissionError = require("../../errorhandlers/AccessPermissoinError");
-const Authrouter = require("../controllers/open/authLoginRouter");
+
+const Authrouter = require("../controllers/authRouter");
 const Adminrouter = require("../controllers/adminRouter");
-const { RES_LOCALS } = require("./constant");
 
 const AuthModel = require("../../models/authModel");
-
-// 🔓 OPEN ROUTER
-const openrouter = express.Router();
-
-// 🔒 CLOSED ROUTER
-const closedrouter = express.Router();
-
+const { RES_LOCALS } = require("./constant");
 
 class RouteMap {
   static setupRoutesAndAuth(app) {
 
     // =========================
-    // 🔓 OPEN ROUTES (NO AUTH)
+    // 🔓 OPEN ROUTER
     // =========================
-    app.use("/", openrouter);
+    const openrouter = express.Router();
 
-    // Example open routes
+    // 👉 All open routes go here (NO middleware)
     openrouter.use("/auth", Authrouter);
 
-    // =========================
-    // 🔒 CLOSED ROUTES (WITH AUTH)
-    // =========================
-    app.use(
-      "/api",
-      ...RouteMap._setupAuth(),
-      RouteMap._addUserInformation,
-      closedrouter
-    );
-    
-    closedrouter.use("/admin",Adminrouter);
+    // mount open routes
+    app.use("/", openrouter);
 
-    // Attach all protected routes here
+    // =========================
+    // 🔒 CLOSED ROUTER
+    // =========================
+    const router = express.Router();
+
+    // 👉 DEFAULT middleware for ALL protected routes
+    router.use(
+      RouteMap._attachLocals,
+      RouteMap._authenticate,
+      RouteMap._attachUser
+    );
+
+    // 👉 Protected feature routers
+    router.use("/admin", Adminrouter);
+
+    // mount protected routes
+    app.use("/api", router);
 
     // =========================
     // ❌ 404 HANDLER
@@ -47,52 +48,57 @@ class RouteMap {
     app.use((req, res) => {
       res.status(404).json({
         status: 404,
-        message: "Specified path not found"
+        message: "Specified path not found",
       });
     });
   }
 
-  // 🔐 AUTH MIDDLEWARE (INLINE)
-  static _setupAuth() {
+  // =========================
+  // 🔧 ATTACH LOCALS
+  // =========================
+  static _attachLocals(req, res, next) {
+    req._locals = res.locals;
+    next();
+  }
 
-    // attach locals
-    const attachLocals = (req, res, next) => {
-      req._locals = res.locals;
-      next();
-    };
-
-    // JWT middleware
-    const authJwt = jwt({
+  // =========================
+  // 🔐 AUTH (COOKIE FIRST)
+  // =========================
+  static _authenticate(req, res, next) {
+    const middleware = jwt({
       secret: process.env.JWT_SECRET_KEY,
       algorithms: ["HS256"],
       getToken: (req) => {
+        // ✅ Cookie priority
+        if (req.cookies?.accessToken) {
+          return req.cookies.accessToken;
+        }
+
+        // fallback header
         if (req.headers.authorization) {
           return req.headers.authorization.split(" ")[1];
         }
+
         return null;
-      }
+      },
     });
 
-    // error handler
-    const handleJwtError = (err, req, res, next) => {
-      if (err.name === "UnauthorizedError") {
+    middleware(req, res, (err) => {
+      if (err) {
         return res.status(401).json({
           status: 401,
-          message: "Invalid or missing token"
+          message: "Invalid or missing token",
         });
       }
-      next(err);
-    };
 
-    return [
-      attachLocals,
-      authJwt,
-      handleJwtError
-    ];
+      next();
+    });
   }
 
-  // 🔐 Attach user info after token validation
-  static async _addUserInformation(req, res, next) {
+  // =========================
+  // 👤 ATTACH USER FROM DB
+  // =========================
+  static async _attachUser(req, res, next) {
     try {
       const decoded = req.auth;
 
@@ -113,31 +119,17 @@ class RouteMap {
           user_id: decoded.user_id,
           email: decoded.email,
           role_id: userData.roles[0].role_id,
-          roles: userData.roles
+          roles: userData.roles,
         },
-        roles: userData.roles
+        roles: userData.roles,
       };
 
-      next();
+      next(); // 👉 goes to actual router method (controller)
+
     } catch (err) {
       next(err);
     }
   }
-
-
 }
 
 module.exports = RouteMap;
-
-
-
-
-
-
-
-
-
-
-
-
-
