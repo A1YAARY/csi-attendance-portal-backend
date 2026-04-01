@@ -3,60 +3,71 @@ const AuthenticationManager = require("../../businesslogic/managers/authenticati
 
 const router = express.Router();
 
+const isProd = process.env.NODE_ENV === "production";
+
 class AuthController {
 
-  // ✅ REGISTER ORGANIZATION (creates ADMIN)
+  // ✅ REGISTER ORGANIZATION
   static async registerOrg(req, res) {
     try {
       const result = await AuthenticationManager.registerOrganization(req.body);
+      console.log(result)
+
+      const { accessToken, refreshToken } = result.data; // ✅ FIX
 
       res
-        .cookie("accessToken", result.accessToken, {
+        .cookie("accessToken", accessToken, {
           httpOnly: true,
-          secure: true,
-          sameSite: "Strict"
+          secure: isProd, // ✅ FIX
+          sameSite: "Strict",
+          maxAge: 15 * 60 * 1000 // ✅ ADD
         })
-        .cookie("refreshToken", result.refreshToken, {
+        .cookie("refreshToken", refreshToken, {
           httpOnly: true,
-          secure: true,
-          sameSite: "Strict"
+          secure: isProd,
+          sameSite: "Strict",
+          maxAge: 7 * 24 * 60 * 60 * 1000
         })
-        .json({ user: result.user });
+        .json({ result });
 
     } catch (err) {
       res.status(400).json({ message: err.message });
     }
   }
 
-  // ✅ LOGIN (ADMIN / STAFF)
+  // ✅ LOGIN
   static async login(req, res) {
     try {
       const result = await AuthenticationManager.loginUser(req.body);
 
+      const { user, accessToken, refreshToken } = result.data; // ✅ FIX
+
       res
-        .cookie("accessToken", result.accessToken, {
+        .cookie("accessToken", accessToken, {
           httpOnly: true,
-          secure: true,
-          sameSite: "Strict"
+          secure: isProd,
+          sameSite: "Strict",
+          maxAge: 15 * 60 * 1000
         })
-        .cookie("refreshToken", result.refreshToken, {
+        .cookie("refreshToken", refreshToken, {
           httpOnly: true,
-          secure: true,
-          sameSite: "Strict"
+          secure: isProd,
+          sameSite: "Strict",
+          maxAge: 7 * 24 * 60 * 60 * 1000
         })
-        .json({ user: result.user });
+        .json({ user });
 
     } catch (err) {
       res.status(400).json({ message: err.message });
     }
   }
 
-  //register user
+  // 👤 REGISTER USER
   static async registerUser(req, res) {
     try {
       const result = await AuthenticationManager.registerUser(req.body);
 
-      res.json({ user: result });
+      res.json({ user: result.data }); // ✅ FIX
 
     } catch (err) {
       res.status(400).json({ message: err.message });
@@ -70,11 +81,14 @@ class AuthController {
 
       const result = await AuthenticationManager.refreshSession(token);
 
+      const { accessToken } = result.data; // ✅ FIX
+
       res
-        .cookie("accessToken", result.accessToken, {
+        .cookie("accessToken", accessToken, {
           httpOnly: true,
-          secure: true,
-          sameSite: "Strict"
+          secure: isProd,
+          sameSite: "Strict",
+          maxAge: 15 * 60 * 1000
         })
         .json({ message: "Token refreshed" });
 
@@ -86,9 +100,7 @@ class AuthController {
   // 🚪 LOGOUT
   static async logout(req, res) {
     try {
-      const token = req.cookies.refreshToken;
-
-      await AuthenticationManager.logoutUser(token);
+      await AuthenticationManager.logoutUser(); // ✅ FIX (no token needed)
 
       res.clearCookie("accessToken");
       res.clearCookie("refreshToken");
@@ -99,10 +111,9 @@ class AuthController {
       res.status(400).json({ message: err.message });
     }
   }
-
 }
 
-// 🔥 ROUTES (ALL AUTH HERE)
+// ROUTES (no change needed here)
 router.post("/register-org", AuthController.registerOrg);
 router.post("/login", AuthController.login);
 router.post("/refresh", AuthController.refresh);

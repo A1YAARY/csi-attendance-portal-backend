@@ -1,106 +1,260 @@
-import bcrypt from "bcryptjs";
-import User from "../../models/authModel.js";
-import Organization from "../../models/organisationModel.js";
-import JwtUtilities from "../../routes/utilities/jwtUtilities.js";
+const bcrypt = require("bcrypt");
+
+const AuthModel = require("../../models/authModel");
+const OrganizationModel = require("../../models/organisationModel");
+
+const JwtUtilities = require("../../routes/utilities/jwtUtilities");
 
 class AuthenticationManager {
+
+  // 🏢 REGISTER ORGANIZATION + ADMIN
   static async registerOrganization(data) {
-    const { orgName, name, email, password } = data;
+    try {
+      const { orgName, address, name, email, password, role_id, gender, phone, department } = data;
 
-    const existing = await User.query().findOne({ email });
-    if (existing) throw new Error("User already exists");
+      const authModel = new AuthModel();
+      const orgModel = new OrganizationModel();
 
-    const org = await Organization.query().insert({
-      name: orgName,
-    });
+      // 🔍 Check if org exists
+      const existingOrg = await orgModel.getOrganizationByName(orgName);
+      if (existingOrg) {
+        throw new Error("Organization already exists");
+      }
 
-    const hashed = await bcrypt.hash(password, 10);
+      // 🔍 Check if user exists
+      const existingUser = await authModel.getUserForLogin(email);
+      if (existingUser) {
+        throw new Error("User already exists");
+      }
 
-    const admin = await User.query().insert({
-      name,
-      email,
-      password: hashed,
-      role: "ADMIN",
-      organization_id: org.id,
-    });
+      // 🏢 Create organization
+      const organization = await orgModel.createOrganization({
+        name: orgName,
+        address,
+      });
 
-    const { accessToken, refreshToken } =
-      JwtUtilities.generateTokens(admin);
+      if (!organization) {
+        throw new Error("Failed to create organization");
+      }
 
-    await User.query()
-      .patch({ refresh_token: refreshToken })
-      .where("id", admin.id);
+      // 🔐 Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // 👤 Create admin user
+      const user = await authModel.createUser({
+        name,
+        email,
+        password: hashedPassword,
+        role_id,
+        gender,
+        phone,
+        department,
+        organization_id: organization.id,
+      });
+      
+      if (!user) {
+        throw new Error("Failed to create admin user");
+      }
+      
+      // 🔑 Generate tokens
+      const tokens = JwtUtilities.generateTokens({
+        user_id: user.user_id,
+        email: user.email,
+        role: role_id,
+      });
+      
+      const accessToken=tokens.accessToken
+      const refreshToken=tokens.refreshToken
+      
+      const updateUser = await authModel.updateUser(user.user_id, {
+        access_token: accessToken,
+        refresh_token: refreshToken
+      });
 
-    return { user: admin, accessToken, refreshToken };
-  }
+      console.log("UPDATE DATA:", updateUser);
 
-  static async loginUser({ email, password }) {
-    const user = await User.query().findOne({ email });
+      return {
+        success: true,
+        message: "Organization and admin created successfully",
+        data: {
+          user,
+          updateUser,
+          organization,
+          // accessToken: tokens.accessToken,
+          // refreshToken: tokens.refreshToken,
+        },
+      };
 
-    if (!user) throw new Error("User not found");
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) throw new Error("Invalid credentials");
-
-    const { accessToken, refreshToken } =
-      JwtUtilities.generateTokens(user);
-
-    await User.query()
-      .patch({ refresh_token: refreshToken })
-      .where("id", user.id);
-
-    return { user, accessToken, refreshToken };
-  }
-
-  static async refreshSession(token) {
-    if (!token) throw new Error("No refresh token");
-
-    const decoded = JwtUtilities.verifyRefreshToken(token);
-
-    const user = await User.query().findById(decoded.id);
-
-    if (!user || user.refresh_token !== token) {
-      throw new Error("Invalid refresh token");
+    } catch (error) {
+      throw error;
     }
-
-    const accessToken = JwtUtilities.generateAccessToken(user);
-
-    return { accessToken };
   }
 
-  static async logoutUser(token) {
-    if (!token) return;
+  // 🔐 LOGIN USER
+  static async loginUser(data) {
+    try {
+      const { email, password } = data;
 
-    const user = await User.query().findOne({
-      refresh_token: token,
-    });
+      const authModel = new AuthModel();
 
-    if (user) {
-      await User.query()
-        .patch({ refresh_token: null })
-        .where("id", user.id);
+      const user = await authModel.getUserForLogin(email);
+      if (!user) throw new Error("User not found");
+
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) throw new Error("Invalid credentials");
+
+      const tokens = JwtUtilities.generateTokens({
+        user_id: user.user_id,
+        email: user.email,
+        role: user.role_name
+      });
+
+      return {
+        success: true,
+        message: "Login successful",
+        data: {
+          user: {
+            user_id: user.user_id,
+            name: user.name,
+            email: user.email,
+            role: user.role_name,
+          },
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        },
+      };
+
+    } catch (error) {
+      throw error;
     }
   }
 
+  // 🔁 REFRESH TOKEN
+  static async refreshSession(refreshToken) {
+    try {
+      if (!refreshToken) {
+        throw new Error("Refresh token missing");
+      }
+
+      const decoded = JwtUtilities.verifyRefreshToken(refreshToken);
+
+      const authModel = new AuthModel();
+
+      const userData = await authModel.getUserRoleById(decoded.email);
+      if (!userData) {
+        throw new Error("Invalid refresh token");
+      }
+
+      const accessToken = JwtUtilities.generateAccessToken({
+        user_id: userData.user_id,
+        email: userData.email,
+        role: userData.roles[0].role_name,
+      });
+
+      return {
+        success: true,
+        message: "Token refreshed",
+        data: { accessToken },
+      };
+
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // 🚪 LOGOUT
+  static async logoutUser() {
+    return {
+      success: true,
+      message: "Logout handled on client",
+    };
+  }
+
+  // 👤 CREATE STAFF (ADMIN ONLY)
   static async createStaff(adminUser, data) {
-    if (adminUser.role !== "ADMIN") {
-      throw new Error("Only admin can create staff");
+    try {
+      const { name, email, password, role_id } = data;
+
+      const authModel = new AuthModel();
+
+      // 🔍 Check existing user
+      const existing = await authModel.getUserForLogin(email);
+      if (existing) {
+        throw new Error("User already exists");
+      }
+
+      // 🔐 Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const user = await authModel.createUser({
+        name,
+        email,
+        password: hashedPassword,
+        role_id,
+        organization_id: adminUser.organization_id,
+      });
+
+      return {
+        success: true,
+        message: "Staff created successfully",
+        data: user,
+      };
+
+    } catch (error) {
+      throw error;
     }
+  }
 
-    const { name, email, password } = data;
+  // 👤 REGISTER USER (PUBLIC / OPTIONAL)
+  static async registerUser(data) {
+    try {
+      const { name, email, password, gender, phone, department, role_id, organization_id } = data;
 
-    const hashed = await bcrypt.hash(password, 10);
+      const authModel = new AuthModel();
 
-    const user = await User.query().insert({
-      name,
-      email,
-      password: hashed,
-      role: "USER",
-      organization_id: adminUser.org,
-    });
+      const existing = await authModel.getUserForLogin(email);
+      if (existing) {
+        throw new Error("User already exists");
+      }
 
-    return user;
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const user = await authModel.createUser({
+        name,
+        email,
+        password: hashedPassword,
+        role_id,
+        gender,
+        phone,
+        department,
+        organization_id,
+      });
+
+      // 🔑 Generate tokens
+      const tokens = JwtUtilities.generateTokens({
+        user_id: user.user_id,
+        email: user.email,
+        role: role_id,
+      });
+      
+      const accessToken=tokens.accessToken
+      const refreshToken=tokens.refreshToken
+      
+      const updateUser = await authModel.updateUser(user.user_id, {
+        access_token: accessToken,
+        refresh_token: refreshToken
+      });
+
+      return {
+        success: true,
+        message: "User registered successfully",
+        data: user,
+      };
+
+    } catch (error) {
+      throw error;
+    }
   }
 }
 
-export default AuthenticationManager;
+module.exports = AuthenticationManager;

@@ -66,6 +66,40 @@ async findOrganizationByName(name) {
     }
   }
 
+  //Update User
+  async updateUser(user_id, payload) {
+    try {
+      const qb = await this.getQueryBuilder();
+      
+      // ✅ FIX: validate payload
+      if (!payload || typeof payload !== "object") {
+        throw new Error("Invalid update payload");
+      }
+
+      // 🔹 Remove undefined/null values
+      const updateData = Object.fromEntries(
+        Object.entries(payload).filter(
+          ([_, value]) => value !== undefined && value !== null
+        )
+      );
+
+      // ❗ Prevent empty update
+      if (Object.keys(updateData).length === 0) {
+        throw new Error("No valid fields to update");
+      }
+
+      const [updatedUser] = await qb("users")
+        .where({ user_id })
+        .update(updateData)
+        .returning(this.getPublicColumns());
+      
+      return updatedUser || null;
+
+    } catch (e) {
+      throw new DatabaseError(e);
+    }
+  }
+
   // 🔐 Login (fetch password)
   async getUserForLogin(email) {
     try {

@@ -25,7 +25,7 @@ class DatabaseError extends AppError {
 
         case "23502": // not null violation
           statusCode = ERROR_STATUS_CODES.BAD_REQUEST;
-          message = "Missing required field";
+          // message = "Missing required field";
           break;
 
         default:

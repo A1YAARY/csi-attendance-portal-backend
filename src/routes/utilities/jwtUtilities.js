@@ -1,4 +1,5 @@
-const jwt = require('express-jwt');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 class JwtUtilities {
   static generateAccessToken(user) {
@@ -9,7 +10,7 @@ class JwtUtilities {
         org: user.organization_id,
       },
       process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: "15m" }
+      { expiresIn: "8h" }
     );
   }
 
@@ -19,6 +20,13 @@ class JwtUtilities {
       process.env.REFRESH_TOKEN_SECRET,
       { expiresIn: "7d" }
     );
+  }
+
+  static generateTokens(user) {
+    return {
+      accessToken: this.generateAccessToken(user),
+      refreshToken: this.generateRefreshToken(user)
+    };
   }
 
   static verifyAccessToken(token) {
