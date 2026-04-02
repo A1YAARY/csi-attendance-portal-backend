@@ -12,7 +12,7 @@ router.get(
   "/allusers",
   appWrapper(async (req, res) => {
     const search = req.query.search || "";
-    const organizationId = req.user.organization_id;
+    const organizationId = res.locals.user.organization_id;
 
     const users = await UserManager.getAllUsersByOrganization(
       organizationId,
@@ -31,7 +31,7 @@ router.get(
       success: true,
       data: users,
     });
-  }, [ACCESS_ROLES.ADMIN, ACCESS_ROLES.SUPER_ADMIN])
+  }, [ACCESS_ROLES.ACCOUNT_ADMIN, ACCESS_ROLES.ACCOUNT_SUPER_ADMIN])
 );
 
 router.put(
@@ -39,7 +39,7 @@ router.put(
   appWrapper(async (req, res) => {
     const userId = parseInt(req.params.id);
     const updateData = req.body;
-    const currentUser = req.user;
+    const currentUser = res.locals.user;
 
     const updatedUser = await UserManager.updateUserById(
       userId,
@@ -60,14 +60,14 @@ router.put(
       data: updatedUser,
       message: "User updated successfully",
     });
-  }, [ACCESS_ROLES.ADMIN, ACCESS_ROLES.SUPER_ADMIN])
+  }, [ACCESS_ROLES.ACCOUNT_ADMIN, ACCESS_ROLES.ACCOUNT_SUPER_ADMIN])
 );
 
 router.delete(
   "/user/:id",
   appWrapper(async (req, res) => {
     const userId = parseInt(req.params.id);
-    const currentUser = req.user;
+    const currentUser = res.locals.user;
 
     const isDeleted = await UserManager.deleteUserById(
       userId,
@@ -86,13 +86,13 @@ router.delete(
       success: true,
       message: "User deleted successfully",
     });
-  }, [ACCESS_ROLES.ADMIN, ACCESS_ROLES.SUPER_ADMIN])
+  }, [ACCESS_ROLES.ACCOUNT_ADMIN, ACCESS_ROLES.ACCOUNT_SUPER_ADMIN])
 );
 
 router.get(
   "/notifications",
   appWrapper(async (req, res) => {
-    const currentUser = req.user;
+    const currentUser = res.locals.user;
 
     const notifications =
       await NotificationManager.getAllNotifications(currentUser);
@@ -101,13 +101,13 @@ router.get(
       success: true,
       data: notifications,
     });
-  }, [ACCESS_ROLES.ADMIN, ACCESS_ROLES.SUPER_ADMIN])
+  }, [ACCESS_ROLES.ACCOUNT_ADMIN, ACCESS_ROLES.ACCOUNT_SUPER_ADMIN])
 );
 
 router.put(
   "/notifications/read-all",
   appWrapper(async (req, res) => {
-    const currentUser = req.user;
+    const currentUser = res.locals.user;
 
     const result =
       await NotificationManager.markAllAsRead(currentUser);
@@ -116,7 +116,7 @@ router.put(
       success: true,
       message: "All notifications marked as read",
     });
-  }, [ACCESS_ROLES.ADMIN, ACCESS_ROLES.SUPER_ADMIN])
+  }, [ACCESS_ROLES.ACCOUNT_ADMIN, ACCESS_ROLES.ACCOUNT_SUPER_ADMIN])
 );
 
 module.exports = router;

@@ -138,7 +138,8 @@ async findOrganizationByName(name) {
           "users.email",
           "users.name",
           "users.role_id",
-          "role.name as role_name" // ✅ FIXED
+          "users.organization_id", // ✅ ADD
+          "role.name as role_name"
         )
         .where("users.email", email)
         .andWhere("users.is_deleted", false)
@@ -150,6 +151,7 @@ async findOrganizationByName(name) {
         user_id: user.user_id,
         email: user.email,
         name: user.name,
+        organization_id: user.organization_id, // ✅ ADD
         roles: [
           {
             role_id: user.role_id,

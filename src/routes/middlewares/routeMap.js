@@ -66,7 +66,7 @@ class RouteMap {
   // =========================
   static _authenticate(req, res, next) {
     const middleware = jwt({
-      secret: process.env.JWT_SECRET_KEY,
+      secret:process.env.ACCESS_TOKEN_SECRET,
       algorithms: ["HS256"],
       getToken: (req) => {
         // ✅ Cookie priority
@@ -78,8 +78,9 @@ class RouteMap {
         if (req.headers.authorization) {
           return req.headers.authorization.split(" ")[1];
         }
-
+    
         return null;
+        
       },
     });
 
@@ -99,37 +100,38 @@ class RouteMap {
   // 👤 ATTACH USER FROM DB
   // =========================
   static async _attachUser(req, res, next) {
-    try {
-      const decoded = req.auth;
+  try {
+    const decoded = req.auth;
 
-      if (!decoded?.user_id || !decoded?.email) {
-        throw new AuthenticationError("Invalid token");
-      }
-
-      const authModel = new AuthModel();
-
-      const userData = await authModel.getUserRoleById(decoded.email);
-
-      if (!userData || !userData.roles?.length) {
-        throw new AccessPermissionError();
-      }
-
-      res.locals[RES_LOCALS.USER_INFO.KEY] = {
-        user: {
-          user_id: decoded.user_id,
-          email: decoded.email,
-          role_id: userData.roles[0].role_id,
-          roles: userData.roles,
-        },
-        roles: userData.roles,
-      };
-
-      next(); // 👉 goes to actual router method (controller)
-
-    } catch (err) {
-      next(err);
+    if (!decoded?.user_id || !decoded?.email) {
+      throw new AuthenticationError("Invalid token");
     }
+
+    const authModel = new AuthModel();
+    const userData = await authModel.getUserRoleById(decoded.email);
+
+    if (!userData || !userData.roles?.length) {
+      throw new AccessPermissionError();
+    }
+
+    // ✅ FIX: DIRECTLY ASSIGN TO res.locals.user
+    res.locals.user = {
+      user_id: decoded.user_id,
+      email: decoded.email,
+      role: userData.roles[0].role_name,
+      role_id: userData.roles[0].role_id,
+      organization_id: userData.organization_id,
+      roles: userData.roles,
+    };
+
+    console.log("ATTACHED USER:", res.locals.user); // ✅ will now work
+
+    next();
+
+  } catch (err) {
+    next(err);
   }
+}
 }
 
 module.exports = RouteMap;

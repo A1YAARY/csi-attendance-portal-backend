@@ -3,24 +3,28 @@ require('dotenv').config();
 
 class JwtUtilities {
   static generateAccessToken(user) {
-    return jwt.sign(
-      {
-        id: user.id,
-        role: user.role,
-        org: user.organization_id,
-      },
-      process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: "8h" }
-    );
-  }
+  return jwt.sign(
+    {
+      user_id: user.user_id,   // ✅ FIX
+      email: user.email,       // ✅ FIX
+      role: user.role,
+      organization_id: user.organization_id
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    { expiresIn: "8h" }
+  );
+}
 
   static generateRefreshToken(user) {
-    return jwt.sign(
-      { id: user.id },
-      process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: "7d" }
-    );
-  }
+  return jwt.sign(
+    {
+      user_id: user.user_id,   // ✅ FIX
+      email: user.email        // ✅ FIX
+    },
+    process.env.REFRESH_TOKEN_SECRET,
+    { expiresIn: "7d" }
+  );
+}
 
   static generateTokens(user) {
     return {
@@ -44,6 +48,7 @@ class JwtUtilities {
       throw new Error("Invalid refresh token");
     }
   }
+  
 }
 
 module.exports = JwtUtilities;

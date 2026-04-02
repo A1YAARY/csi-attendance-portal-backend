@@ -11,6 +11,9 @@ const ErrorHandler = require('./src/errorhandlers/ErrorHandler');
 
 const app = express();
 
+console.log("ACCESS:", process.env.ACCESS_TOKEN_SECRET);
+console.log("REFRESH:", process.env.REFRESH_TOKEN_SECRET);
+
 // view engine setup
 app.set('views', path.join(__dirname, './src/views'));
 app.set('view engine', 'ejs');

@@ -5,17 +5,16 @@ const LogUtilities = require("./utilities/logUtilities");
 const appWrapper = (callback, allowedRoles = null) => {
   return async (req, res, next) => {
     try {
-      const userInfo =
-        res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
+      const userInfo = res.locals.user ?? {}; // ✅ FIX
 
-      const { roles = undefined, organization = undefined } = userInfo;
+      const { roles } = userInfo; // ✅ FIX
       req.user = userInfo;
 
       // 🔐 Role check
       if (allowedRoles && allowedRoles.length > 0) {
         AccessManagement.checkIfAccessGrantedOrThrowError(
           allowedRoles,
-          { roles, organization }
+          { roles } // ✅ FIX
         );
       }
 
@@ -36,7 +35,7 @@ const successResponseAppWrapper = (callback, allowedRoles = null) => {
   return async (req, res, next) => {
     try {
       const { roles = undefined, organization = undefined } =
-        res.locals[RES_LOCALS.USER_INFO.KEY] ?? {};
+        res.locals.user ?? {};
 
       if (allowedRoles && allowedRoles.length > 0) {
         AccessManagement.checkIfAccessGrantedOrThrowError(
