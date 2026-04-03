@@ -6,6 +6,7 @@ const NotificationManager = require("../../businesslogic/managers/notificationMa
 const { ACCESS_ROLES } = require("../../businesslogic/accessmanagement/roleConstants");
 const AppError = require("../../errorhandlers/AppError");
 const { ERROR_STATUS_CODES } = require("../../errorhandlers/constants");
+const AuthenticationManager = require("../../businesslogic/managers/authenticationManager");
 
 
 router.get(
@@ -117,6 +118,38 @@ router.put(
       message: "All notifications marked as read",
     });
   }, [ACCESS_ROLES.ACCOUNT_ADMIN, ACCESS_ROLES.ACCOUNT_SUPER_ADMIN])
+);
+
+router.post(
+  "/register-org",
+  appWrapper(async (req, res) => {
+    const currentUser = res.locals.user;
+
+    const result = await AuthenticationManager.registerOrganization(
+      currentUser,   // ✅ PASS USER
+      req.body
+    );
+    return res.json(result);
+  }, [ACCESS_ROLES.ACCOUNT_SUPER_ADMIN])
+);
+
+router.post(
+  "/register-user",
+  appWrapper(async (req, res) => {
+    const currentUser = res.locals.user;
+
+    const result = await AuthenticationManager.registerUser(
+      currentUser,   // ✅ PASS USER
+      {
+        ...req.body,
+        organization_id: currentUser.organization_id // ✅ IMPORTANT
+      }
+    );
+    return res.json(result);
+  }, [
+    ACCESS_ROLES.ACCOUNT_ADMIN,
+    ACCESS_ROLES.ACCOUNT_SUPER_ADMIN
+  ])
 );
 
 module.exports = router;

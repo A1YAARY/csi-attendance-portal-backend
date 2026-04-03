@@ -8,8 +8,12 @@ const JwtUtilities = require("../../routes/utilities/jwtUtilities");
 class AuthenticationManager {
 
   // 🏢 REGISTER ORGANIZATION + ADMIN
-  static async registerOrganization(data) {
+  static async registerOrganization(adminUser, data) {
     try {
+      if (adminUser?.role !== "SUPER_ADMIN") {
+      throw new Error("Only super admin can create organization");
+    }
+    
       const { orgName, address, name, email, password, role_id, gender, phone, department } = data;
 
       const authModel = new AuthModel();
@@ -206,8 +210,15 @@ class AuthenticationManager {
   }
 
   // 👤 REGISTER USER (PUBLIC / OPTIONAL)
-  static async registerUser(data) {
+  static async registerUser(adminUser, data) {
     try {
+      if (
+  adminUser?.role !== "ADMIN" &&
+  adminUser?.role !== "SUPER_ADMIN"
+) {
+  throw new Error("Only admin or super admin can create users");
+}
+      
       const { name, email, password, gender, phone, department, role_id, organization_id } = data;
 
       const authModel = new AuthModel();
@@ -255,6 +266,67 @@ class AuthenticationManager {
       throw error;
     }
   }
+
+  // 👑 REGISTER SUPER ADMIN
+static async registerSuperAdmin(data) {
+  try {
+    const { name, email, password, gender, phone, role_id } = data;
+
+    const authModel = new AuthModel();
+
+    // 🔍 Check if user exists
+    const existing = await authModel.getUserForLogin(email);
+    if (existing) {
+      throw new Error("User already exists");
+    }
+
+    // 🔐 Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 👤 Create super admin (NO org_id, NO department)
+    const user = await authModel.createUser({
+      name,
+      email,
+      password: hashedPassword,
+      role_id,
+      gender,
+      phone
+    });
+
+    if (!user) {
+      throw new Error("Failed to create super admin");
+    }
+
+    // 🔑 Generate tokens
+    const tokens = JwtUtilities.generateTokens({
+      user_id: user.user_id,
+      email: user.email,
+      role: role_id,
+    });
+
+    const accessToken = tokens.accessToken;
+    const refreshToken = tokens.refreshToken;
+
+    // 💾 Save tokens
+    await authModel.updateUser(user.user_id, {
+      access_token: accessToken,
+      refresh_token: refreshToken
+    });
+
+    return {
+      success: true,
+      message: "Super Admin registered successfully",
+      data: {
+        user,
+        accessToken,
+        refreshToken
+      },
+    };
+
+  } catch (error) {
+    throw error;
+  }
+}
 }
 
 module.exports = AuthenticationManager;

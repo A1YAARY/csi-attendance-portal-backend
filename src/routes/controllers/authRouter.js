@@ -1,5 +1,8 @@
 const express = require("express");
 const AuthenticationManager = require("../../businesslogic/managers/authenticationManager");
+const AccessManagement = require("../../businesslogic/accessmanagement/accessManagement");
+const { ACCESS_ROLES } = require("../../businesslogic/accessmanagement/roleConstants");
+
 
 const router = express.Router();
 
@@ -111,13 +114,51 @@ class AuthController {
       res.status(400).json({ message: err.message });
     }
   }
+
+  // 👑 REGISTER SUPER ADMIN
+static async registerSuperAdmin(req, res) {
+  try {
+    const result = await AuthenticationManager.registerSuperAdmin(req.body);
+
+    const { accessToken, refreshToken, user } = result.data;
+
+    res
+      .cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "Strict",
+        maxAge: 15 * 60 * 1000
+      })
+      .cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "Strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000
+      })
+      .json({ user });
+
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+}
+
 }
 
 // ROUTES (no change needed here)
-router.post("/register-org", AuthController.registerOrg);
+// router.post("/register-org", AccessManagement.allowAccess([ACCESS_ROLES.ACCOUNT_SUPER_ADMIN]),
+//  AuthController.registerOrg);
+
 router.post("/login", AuthController.login);
+
 router.post("/refresh", AuthController.refresh);
+
 router.post("/logout", AuthController.logout);
-router.post("/register-user", AuthController.registerUser);
+
+// router.post("/register-user",AccessManagement.allowAccess([
+//     ACCESS_ROLES.ACCOUNT_ADMIN,
+//     ACCESS_ROLES.ACCOUNT_SUPER_ADMIN
+//   ]), AuthController.registerUser);
+
+router.post("/register-super-admin", AuthController.registerSuperAdmin);
 
 module.exports = router;

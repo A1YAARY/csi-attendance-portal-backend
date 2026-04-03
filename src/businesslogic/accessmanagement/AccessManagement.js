@@ -8,15 +8,15 @@ class AccessManagement {
         
 
         const currentUser = res.locals.user;
-        console.log("CURRENT USER:", currentUser);
-      console.log("ROLE:", userRole);
-      console.log("ALLOWED ROLES:", allowedRoles);
 
 if (!currentUser) {
   return res.status(401).json({ message: "Unauthorized" });
 }
 
 const userRole = currentUser?.role;
+console.log("CURRENT USER:", currentUser);
+      console.log("ROLE:", userRole);
+      console.log("ALLOWED ROLES:", allowedRoles);
 
         // Allow all
         if (allowedRoles.includes(ACCESS_ROLES.ALL)) {
