@@ -6,6 +6,7 @@ const AccessPermissionError = require("../../errorhandlers/AccessPermissoinError
 
 const Authrouter = require("../controllers/authRouter");
 const Adminrouter = require("../controllers/adminRouter");
+const BulkUploadRouter = require("../controllers/bulkUploadRouter");
 
 const AuthModel = require("../../models/authModel");
 const { RES_LOCALS } = require("./constant");
@@ -20,6 +21,7 @@ class RouteMap {
 
     // 👉 All open routes go here (NO middleware)
     openrouter.use("/auth", Authrouter);
+// openrouter.use("/bulk-upload", BulkUploadRouter);
 
     // mount open routes
     app.use("/", openrouter);
@@ -29,6 +31,7 @@ class RouteMap {
     // =========================
     const router = express.Router();
 
+
     // 👉 DEFAULT middleware for ALL protected routes
     router.use(
       RouteMap._attachLocals,
@@ -37,6 +40,7 @@ class RouteMap {
     );
 
     // 👉 Protected feature routers
+    router.use("/bulk-upload", BulkUploadRouter);
     router.use("/admin", Adminrouter);
 
     // mount protected routes
@@ -73,7 +77,8 @@ class RouteMap {
         if (req.cookies?.accessToken) {
           return req.cookies.accessToken;
         }
-
+console.log("COOKIES:", req.cookies);
+console.log("TOKEN FROM COOKIE:", req.cookies?.accessToken);
         // fallback header
         if (req.headers.authorization) {
           return req.headers.authorization.split(" ")[1];
