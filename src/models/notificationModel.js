@@ -76,6 +76,29 @@ class NotificationModel extends BaseModel {
     throw new DatabaseError(e);
   }
 }
+async markAsReadWithAccessControl(notificationId, currentUser) {
+  try {
+    const qb = await this.getQueryBuilder();
+
+    const query = qb("notifications")
+      .where("id", notificationId)
+      .andWhere("is_deleted", false);
+
+    // 🔐 SUPER ADMIN 
+    if (currentUser.role !== "SUPER_ADMIN") {
+      query.andWhere("user_id", currentUser.user_id);
+    }
+
+    const updated = await query.update({
+      is_read: true,
+      updated_at: new Date()
+    });
+
+    return updated;
+  } catch (e) {
+    throw new DatabaseError(e);
+  }
+}
 
   normalizeNotification(notification) {
     return {

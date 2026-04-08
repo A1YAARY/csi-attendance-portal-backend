@@ -6,6 +6,7 @@ const AccessPermissionError = require("../../errorhandlers/AccessPermissoinError
 
 const Authrouter = require("../controllers/authRouter");
 const Adminrouter = require("../controllers/adminRouter");
+const NotificationRouter = require("../controllers/notificationRouter");
 
 const AuthModel = require("../../models/authModel");
 const { RES_LOCALS } = require("./constant");
@@ -38,6 +39,9 @@ class RouteMap {
 
     // 👉 Protected feature routers
     router.use("/admin", Adminrouter);
+    
+    //notification route 
+    router.use("/notifications", NotificationRouter);
 
     // mount protected routes
     app.use("/api", router);
