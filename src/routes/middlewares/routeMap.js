@@ -1,5 +1,6 @@
 const express = require("express");
 const { expressjwt: jwt } = require("express-jwt");
+const jwtLib = require("jsonwebtoken"); // for manual token handling
 
 const AuthenticationError = require("../../errorhandlers/AuthenticationError");
 const AccessPermissionError = require("../../errorhandlers/AccessPermissoinError");
@@ -18,10 +19,8 @@ class RouteMap {
     // =========================
     const openrouter = express.Router();
 
-    // 👉 All open routes go here (NO middleware)
     openrouter.use("/auth", Authrouter);
 
-    // mount open routes
     app.use("/", openrouter);
 
     // =========================
@@ -29,17 +28,15 @@ class RouteMap {
     // =========================
     const router = express.Router();
 
-    // 👉 DEFAULT middleware for ALL protected routes
     router.use(
       RouteMap._attachLocals,
+      RouteMap._checkAccessOrRefresh, // ✅ NEW MIDDLEWARE
       RouteMap._authenticate,
       RouteMap._attachUser
     );
 
-    // 👉 Protected feature routers
     router.use("/admin", Adminrouter);
 
-    // mount protected routes
     app.use("/api", router);
 
     // =========================
@@ -62,25 +59,84 @@ class RouteMap {
   }
 
   // =========================
+  // 🔁 ACCESS / REFRESH HANDLER
+  // =========================
+  static async _checkAccessOrRefresh(req, res, next) {
+    try {
+      const accessToken = req.cookies?.accessToken;
+      const refreshToken = req.cookies?.refreshToken;
+
+      // ✅ If access token exists → continue
+      if (accessToken) {
+        return next();
+      }
+
+      // ❌ No access token & no refresh token
+      if (!refreshToken) {
+        return res.status(401).json({
+          status: 401,
+          message: "Session expired. Please login again.",
+        });
+      }
+
+      // 🔁 Verify refresh token
+      let decoded;
+      try {
+        decoded = jwtLib.verify(
+          refreshToken,
+          process.env.REFRESH_TOKEN_SECRET
+        );
+      } catch (err) {
+        return res.status(401).json({
+          status: 401,
+          message: "Invalid refresh token. Please login again.",
+        });
+      }
+
+      // 🔥 Generate new access token
+      const newAccessToken = jwtLib.sign(
+        {
+          user_id: decoded.user_id,
+          email: decoded.email,
+        },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "15m" }
+      );
+
+      // 🍪 Set new access token cookie
+      res.cookie("accessToken", newAccessToken, {
+        httpOnly: true,
+        secure: false, // ⚠️ set true in production
+        sameSite: "strict",
+      });
+
+      // ⚡ Attach token so express-jwt can read it
+      req.headers.authorization = `Bearer ${newAccessToken}`;
+
+      next();
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // =========================
   // 🔐 AUTH (COOKIE FIRST)
   // =========================
   static _authenticate(req, res, next) {
     const middleware = jwt({
-      secret:process.env.ACCESS_TOKEN_SECRET,
+      secret: process.env.ACCESS_TOKEN_SECRET,
       algorithms: ["HS256"],
       getToken: (req) => {
-        // ✅ Cookie priority
+
         if (req.cookies?.accessToken) {
           return req.cookies.accessToken;
         }
 
-        // fallback header
         if (req.headers.authorization) {
           return req.headers.authorization.split(" ")[1];
         }
-    
+
         return null;
-        
       },
     });
 
@@ -100,38 +156,37 @@ class RouteMap {
   // 👤 ATTACH USER FROM DB
   // =========================
   static async _attachUser(req, res, next) {
-  try {
-    const decoded = req.auth;
+    try {
+      const decoded = req.auth;
 
-    if (!decoded?.user_id || !decoded?.email) {
-      throw new AuthenticationError("Invalid token");
+      if (!decoded?.user_id || !decoded?.email) {
+        throw new AuthenticationError("Invalid token");
+      }
+
+      const authModel = new AuthModel();
+      const userData = await authModel.getUserRoleById(decoded.email);
+
+      if (!userData || !userData.roles?.length) {
+        throw new AccessPermissionError();
+      }
+
+      res.locals.user = {
+        user_id: decoded.user_id,
+        email: decoded.email,
+        role: userData.roles[0].role_name,
+        role_id: userData.roles[0].role_id,
+        organization_id: userData.organization_id,
+        roles: userData.roles,
+      };
+
+      console.log("ATTACHED USER:", res.locals.user);
+
+      next();
+
+    } catch (err) {
+      next(err);
     }
-
-    const authModel = new AuthModel();
-    const userData = await authModel.getUserRoleById(decoded.email);
-
-    if (!userData || !userData.roles?.length) {
-      throw new AccessPermissionError();
-    }
-
-    // ✅ FIX: DIRECTLY ASSIGN TO res.locals.user
-    res.locals.user = {
-      user_id: decoded.user_id,
-      email: decoded.email,
-      role: userData.roles[0].role_name,
-      role_id: userData.roles[0].role_id,
-      organization_id: userData.organization_id,
-      roles: userData.roles,
-    };
-
-    console.log("ATTACHED USER:", res.locals.user); // ✅ will now work
-
-    next();
-
-  } catch (err) {
-    next(err);
   }
 }
-}
 
-module.exports = RouteMap;
+module.exports = RouteMap; 
