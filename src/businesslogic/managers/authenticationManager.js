@@ -95,24 +95,55 @@ class AuthenticationManager {
   }
 
   // 🔐 LOGIN USER
-  static async loginUser(data) {
+  static async loginUser(data, res) {
     try {
       const { email, password } = data;
 
       const authModel = new AuthModel();
 
+      // 🔍 Check user
       const user = await authModel.getUserForLogin(email);
       if (!user) throw new Error("User not found");
 
+      // 🔑 Verify password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) throw new Error("Invalid credentials");
 
+      // 🎟️ Generate tokens
       const tokens = JwtUtilities.generateTokens({
         user_id: user.user_id,
         email: user.email,
-        role: user.role_name
+        role: user.role_name,
       });
 
+      // ⏳ Expiry = current time + 7 days
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 7);
+
+      // 💾 Store refresh token in DB
+      await authModel.updateRefreshToken(
+        user.user_id,
+        tokens.refreshToken,
+        expiryDate
+      );
+
+      // 🍪 Set Access Token Cookie (15 min)
+      res.cookie("accessToken", tokens.accessToken, {
+        httpOnly: true,
+        secure: false, // ⚠️ set true in production (HTTPS)
+        sameSite: "Strict",
+        maxAge: 8 * 60 * 60 * 1000,
+      });
+
+      // 🍪 Set Refresh Token Cookie (7 days)
+      res.cookie("refreshToken", tokens.refreshToken, {
+        httpOnly: true,
+        secure: false, // ⚠️ set true in production
+        sameSite: "Strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      // ✅ Final response (NO tokens exposed)
       return {
         success: true,
         message: "Login successful",
@@ -123,8 +154,6 @@ class AuthenticationManager {
             email: user.email,
             role: user.role_name,
           },
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
         },
       };
 
@@ -242,19 +271,19 @@ class AuthenticationManager {
       });
 
       // 🔑 Generate tokens
-      const tokens = JwtUtilities.generateTokens({
-        user_id: user.user_id,
-        email: user.email,
-        role: role_id,
-      });
+      // const tokens = JwtUtilities.generateTokens({
+      //   user_id: user.user_id,
+      //   email: user.email,
+      //   role: role_id,
+      // });
       
-      const accessToken=tokens.accessToken
-      const refreshToken=tokens.refreshToken
+      // const accessToken=tokens.accessToken
+      // const refreshToken=tokens.refreshToken
       
-      const updateUser = await authModel.updateUser(user.user_id, {
-        access_token: accessToken,
-        refresh_token: refreshToken
-      });
+      // const updateUser = await authModel.updateUser(user.user_id, {
+      //   access_token: accessToken,
+      //   refresh_token: refreshToken
+      // });
 
       return {
         success: true,
