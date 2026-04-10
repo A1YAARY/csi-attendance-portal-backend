@@ -100,8 +100,12 @@ class RouteMap {
           email: decoded.email,
         },
         process.env.ACCESS_TOKEN_SECRET,
-        { expiresIn: "15m" }
+        { expiresIn: "8h" }
       );
+
+      await authModel.updateUser(user.user_id, {
+        access_token: accessToken
+      });
 
       // 🍪 Set new access token cookie
       res.cookie("accessToken", newAccessToken, {

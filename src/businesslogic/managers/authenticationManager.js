@@ -72,7 +72,8 @@ class AuthenticationManager {
       
       const updateUser = await authModel.updateUser(user.user_id, {
         access_token: accessToken,
-        refresh_token: refreshToken
+        refresh_token: refreshToken,
+        expiryDate
       });
 
       console.log("UPDATE DATA:", updateUser);
